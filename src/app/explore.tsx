@@ -1,171 +1,566 @@
-import React from "react";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import React, { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
-import { ExternalLink } from "@/components/external-link";
-import { ThemedText } from "@/components/themed-text";
-import { ThemedView } from "@/components/themed-view";
-import { BottomTabInset, Spacing } from "@/constants/theme";
-import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
-import { useTheme } from "@/hooks/use-theme";
+import { Fonts } from "@/constants/theme";
 
-export default function TabTwoScreen() {
-  const safeAreaInsets = useSafeAreaInsets();
-  const insets = {
-    ...safeAreaInsets,
-    bottom: safeAreaInsets.bottom + BottomTabInset + Spacing.three,
+type ChatMessage = {
+  id: string;
+  role: "assistant" | "user";
+  text: string;
+  loading?: boolean;
+};
+
+const dayCards = [
+  {
+    id: "day-0",
+    day: "Day 0",
+    title: "Arrival preview",
+    accent: "#D9EEF7",
+    active: false,
+  },
+  {
+    id: "day-1",
+    day: "Day 1",
+    title: "Arrival & Exploration",
+    accent: "#F7F6EE",
+    active: true,
+    timeline: [
+      "09:00 - Check-in",
+      "12:00 - Local Lunch",
+      "15:00 - City Center",
+    ],
+  },
+  {
+    id: "day-2",
+    day: "Day 2",
+    title: "Slow morning plan",
+    accent: "#DFF3EE",
+    active: false,
+  },
+] as const;
+
+const bottomNavItems = [
+  { label: "Explore", icon: "◌", active: false },
+  { label: "My Trips", icon: "▣", active: true },
+  { label: "Profile", icon: "◌", active: false },
+] as const;
+
+export default function ExploreScreen() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams<{ destination?: string }>();
+  const loadingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [composerText, setComposerText] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      id: "assistant-initial",
+      role: "assistant",
+      text: "Plano base pronto! Para ajustar, me diga: quando você vai e com quem?",
+    },
+  ]);
+
+  const destination =
+    typeof params.destination === "string" &&
+    params.destination.trim().length > 0
+      ? params.destination.trim()
+      : "Rio de Janeiro";
+
+  useEffect(() => {
+    return () => {
+      if (loadingTimer.current) {
+        clearTimeout(loadingTimer.current);
+      }
+    };
+  }, []);
+
+  const handleGoHome = () => {
+    router.push("/");
   };
-  const theme = useTheme();
-  const { horizontalPadding, topPadding, bottomPadding, maxContentWidth } =
-    useResponsiveLayout();
 
-  const contentPlatformStyle = Platform.select({
-    ios: {
-      paddingTop: safeAreaInsets.top + topPadding,
-      paddingLeft: horizontalPadding,
-      paddingRight: horizontalPadding,
-      paddingBottom:
-        safeAreaInsets.bottom + bottomPadding + BottomTabInset + Spacing.three,
-    },
-    android: {
-      paddingTop: topPadding,
-      paddingLeft: horizontalPadding,
-      paddingRight: horizontalPadding,
-      paddingBottom: bottomPadding + BottomTabInset + Spacing.three,
-    },
-    default: {
-      paddingTop: topPadding,
-      paddingLeft: horizontalPadding,
-      paddingRight: horizontalPadding,
-      paddingBottom: bottomPadding + BottomTabInset + Spacing.three,
-    },
-  });
+  const handleSend = () => {
+    const trimmedText = composerText.trim();
+
+    if (!trimmedText || isLoading) {
+      return;
+    }
+
+    const timestamp = Date.now();
+    const loadingMessageId = `loading-${timestamp}`;
+
+    setComposerText("");
+    setIsLoading(true);
+    setMessages((currentMessages) => [
+      ...currentMessages,
+      {
+        id: `user-${timestamp}`,
+        role: "user",
+        text: trimmedText,
+      },
+      {
+        id: loadingMessageId,
+        role: "assistant",
+        text: "",
+        loading: true,
+      },
+    ]);
+
+    loadingTimer.current = setTimeout(() => {
+      setMessages((currentMessages) =>
+        currentMessages
+          .filter((message) => !message.loading)
+          .concat({
+            id: `assistant-${Date.now()}`,
+            role: "assistant",
+            text: `Fechado. Vou ajustar o plano base para ${destination}. Agora me diga as datas exatas e com quem você vai para eu refinar tudo.`,
+          }),
+      );
+      setIsLoading(false);
+    }, 1300);
+  };
 
   return (
-    <ScrollView
-      style={[styles.scrollView, { backgroundColor: theme.background }]}
-      contentInset={insets}
-      contentInsetAdjustmentBehavior={
-        Platform.OS === "ios" ? "always" : "never"
-      }
-      contentContainerStyle={[styles.contentContainer, contentPlatformStyle]}
-    >
-      <ThemedView
-        style={[
-          styles.container,
-          { maxWidth: maxContentWidth, width: "100%", alignSelf: "center" },
-        ]}
+    <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
+      <KeyboardAvoidingView
+        style={styles.screen}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <ThemedView
-          style={[
-            styles.titleContainer,
-            {
-              paddingHorizontal: horizontalPadding,
-              paddingTop: topPadding,
-              paddingBottom: bottomPadding,
-            },
-          ]}
-        >
-          <ThemedText type="subtitle">Explore</ThemedText>
-          <ThemedText style={styles.centerText} themeColor="textSecondary">
-            Conteúdo de apoio para testar navegação e layout no app.
-          </ThemedText>
+        <View style={styles.screen}>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
+            contentContainerStyle={[
+              styles.scrollContent,
+              {
+                paddingTop: insets.top + 14,
+                paddingBottom: insets.bottom + 124,
+              },
+            ]}
+          >
+            <View style={styles.content}>
+              <View style={styles.header}>
+                <Text style={styles.brand}>My Travel</Text>
+                <Text style={styles.destination}>
+                  Base plan for {destination}
+                </Text>
+              </View>
 
-          <ExternalLink href="https://docs.expo.dev" asChild>
-            <Pressable style={({ pressed }) => pressed && styles.pressed}>
-              <ThemedView type="backgroundElement" style={styles.linkButton}>
-                <ThemedText type="link">Expo documentation</ThemedText>
-                <Text style={{ color: theme.text, fontWeight: "700" }}>↗</Text>
-              </ThemedView>
-            </Pressable>
-          </ExternalLink>
-        </ThemedView>
+              <View style={styles.carouselWrap}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.carousel}
+                  decelerationRate="fast"
+                  snapToAlignment="center"
+                >
+                  {dayCards.map((card) => (
+                    <View
+                      key={card.id}
+                      style={[
+                        styles.card,
+                        card.active ? styles.cardActive : styles.cardSide,
+                        { backgroundColor: card.accent },
+                      ]}
+                    >
+                      <Text style={styles.cardDay}>{card.day}</Text>
+                      <Text style={styles.cardTitle}>{card.title}</Text>
 
-        <ThemedView
-          style={[
-            styles.sectionsWrapper,
-            { maxWidth: maxContentWidth, paddingHorizontal: horizontalPadding },
-          ]}
-        >
-          <View style={styles.simpleCard}>
-            <ThemedText type="smallBold">Tela nativa simplificada</ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">
-              Mantive apenas conteúdo estático para eliminar qualquer crash de
-              animação ou componente opcional no iPhone.
-            </ThemedText>
+                      {card.active ? (
+                        <View style={styles.timeline}>
+                          {card.timeline?.map((item) => (
+                            <View key={item} style={styles.timelineRow}>
+                              <View style={styles.timelineDot} />
+                              <Text style={styles.timelineText}>{item}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      ) : (
+                        <View style={styles.cardGhost} />
+                      )}
+                    </View>
+                  ))}
+                </ScrollView>
+              </View>
+
+              <View style={styles.chatArea}>
+                <View style={styles.chatHeader}>
+                  <View style={styles.chatBadge} />
+                  <Text style={styles.chatTitle}>My Travel AI</Text>
+                </View>
+
+                <View style={styles.chatThread}>
+                  {messages.map((message) =>
+                    message.loading ? (
+                      <View
+                        key={message.id}
+                        style={[styles.chatBubble, styles.chatBubbleLoading]}
+                      >
+                        <ActivityIndicator size="small" color="#0F766E" />
+                        <Text style={styles.chatBubbleLoadingText}>
+                          Gerando próxima resposta...
+                        </Text>
+                      </View>
+                    ) : (
+                      <View
+                        key={message.id}
+                        style={[
+                          styles.chatBubble,
+                          message.role === "user"
+                            ? styles.chatBubbleUser
+                            : styles.chatBubbleAssistant,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.chatBubbleText,
+                            message.role === "user"
+                              ? styles.chatBubbleTextUser
+                              : styles.chatBubbleTextAssistant,
+                          ]}
+                        >
+                          {message.text}
+                        </Text>
+                      </View>
+                    ),
+                  )}
+                </View>
+
+                <View style={styles.composer}>
+                  <TextInput
+                    value={composerText}
+                    onChangeText={setComposerText}
+                    placeholder="Type your message..."
+                    placeholderTextColor="#8EA0A6"
+                    style={styles.composerInput}
+                    onSubmitEditing={handleSend}
+                    returnKeyType="send"
+                    editable={!isLoading}
+                  />
+                  <Pressable
+                    onPress={handleSend}
+                    disabled={isLoading || composerText.trim().length === 0}
+                    style={({ pressed }) => [
+                      styles.composerButton,
+                      (isLoading || composerText.trim().length === 0) &&
+                        styles.composerButtonDisabled,
+                      pressed &&
+                        !isLoading &&
+                        composerText.trim().length > 0 &&
+                        styles.composerButtonPressed,
+                    ]}
+                  >
+                    {isLoading ? (
+                      <ActivityIndicator size="small" color="#0F4C81" />
+                    ) : (
+                      <Text style={styles.composerButtonText}>➤</Text>
+                    )}
+                  </Pressable>
+                </View>
+              </View>
+            </View>
+          </ScrollView>
+
+          <View
+            style={[styles.bottomNav, { paddingBottom: insets.bottom || 12 }]}
+          >
+            {bottomNavItems.map((item) => (
+              <Pressable
+                key={item.label}
+                onPress={item.label === "Explore" ? handleGoHome : undefined}
+                style={styles.bottomNavItem}
+              >
+                <View
+                  style={[
+                    styles.bottomNavIcon,
+                    item.active && styles.bottomNavIconActive,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.bottomNavIconText,
+                      item.active && styles.bottomNavIconTextActive,
+                    ]}
+                  >
+                    {item.icon}
+                  </Text>
+                </View>
+                <Text
+                  style={[
+                    styles.bottomNavLabel,
+                    item.active && styles.bottomNavLabelActive,
+                  ]}
+                >
+                  {item.label}
+                </Text>
+              </Pressable>
+            ))}
           </View>
-
-          <View style={styles.simpleCard}>
-            <ThemedText type="smallBold">Próximo passo</ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">
-              Se essa tela aparecer no app, o problema estava nos componentes
-              animados e a gente reintroduz um por um.
-            </ThemedText>
-          </View>
-        </ThemedView>
-      </ThemedView>
-    </ScrollView>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  scrollView: {
+  screen: {
     flex: 1,
+    backgroundColor: "#D9DFE7",
   },
-  contentContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#D9DFE7",
   },
-  container: {
+  scrollContent: {
     flexGrow: 1,
   },
-  titleContainer: {
-    gap: Spacing.three,
+  content: {
+    flex: 1,
+    paddingHorizontal: 18,
+    paddingBottom: 16,
+  },
+  header: {
     alignItems: "center",
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.six,
+    marginBottom: 18,
   },
-  centerText: {
-    textAlign: "center",
+  brand: {
+    fontSize: 22,
+    lineHeight: 26,
+    fontWeight: "400",
+    fontFamily: Fonts.serif,
+    color: "#111827",
   },
-  pressed: {
-    opacity: 0.7,
+  destination: {
+    marginTop: 8,
+    fontSize: 14,
+    color: "#374151",
+    fontWeight: "500",
   },
-  linkButton: {
+  carouselWrap: {
+    marginBottom: 16,
+  },
+  carousel: {
+    paddingHorizontal: 2,
+    gap: 12,
+    alignItems: "center",
+  },
+  card: {
+    width: 160,
+    minHeight: 210,
+    borderRadius: 24,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "rgba(15, 23, 42, 0.08)",
+    backgroundColor: "#FFFFFF",
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 14 },
+    shadowRadius: 18,
+    elevation: 4,
+  },
+  cardActive: {
+    width: 178,
+    transform: [{ translateY: -6 }],
+  },
+  cardSide: {
+    opacity: 0.88,
+  },
+  cardDay: {
+    fontSize: 12,
+    color: "#0F172A",
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+  },
+  cardTitle: {
+    marginTop: 8,
+    fontSize: 16,
+    color: "#111827",
+    fontWeight: "600",
+    lineHeight: 20,
+  },
+  cardGhost: {
+    flex: 1,
+    marginTop: 12,
+    borderRadius: 18,
+    backgroundColor: "rgba(255, 255, 255, 0.35)",
+  },
+  timeline: {
+    marginTop: 14,
+    gap: 10,
+  },
+  timelineRow: {
     flexDirection: "row",
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.two,
-    borderRadius: Spacing.five,
-    justifyContent: "center",
-    gap: Spacing.one,
     alignItems: "center",
+    gap: 10,
   },
-  sectionsWrapper: {
-    gap: Spacing.five,
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.three,
+  timelineDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: "#7BBCA5",
+    backgroundColor: "#DFF3EE",
   },
-  simpleCard: {
-    gap: Spacing.two,
-    padding: Spacing.four,
-    borderRadius: Spacing.three,
+  timelineText: {
+    flex: 1,
+    color: "#374151",
+    fontSize: 12,
+    lineHeight: 16,
   },
-  imageTutorial: {
+  chatArea: {
+    gap: 12,
+    marginTop: "auto",
+  },
+  chatHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  chatBadge: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "#0F4C81",
+  },
+  chatTitle: {
+    fontSize: 13,
+    color: "#111827",
+    fontWeight: "500",
+  },
+  chatThread: {
+    gap: 12,
+  },
+  chatBubble: {
+    alignSelf: "flex-start",
+    maxWidth: "88%",
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 18,
+    borderTopLeftRadius: 6,
+  },
+  chatBubbleAssistant: {
+    backgroundColor: "#C5EED8",
+  },
+  chatBubbleUser: {
+    alignSelf: "flex-end",
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "rgba(15, 23, 42, 0.08)",
+    borderTopRightRadius: 6,
+    borderTopLeftRadius: 18,
+  },
+  chatBubbleLoading: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: "#E8F5F0",
+  },
+  chatBubbleLoadingText: {
+    color: "#0F766E",
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  chatBubbleText: {
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  chatBubbleTextAssistant: {
+    color: "#123226",
+  },
+  chatBubbleTextUser: {
+    color: "#0F172A",
+  },
+  composer: {
+    marginTop: 2,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderWidth: 1.5,
+    borderColor: "#163A67",
+    borderRadius: 18,
+    backgroundColor: "#FFFFFF",
+    paddingLeft: 14,
+    paddingRight: 6,
+    height: 46,
+  },
+  composerInput: {
+    flex: 1,
+    color: "#0F172A",
+    fontSize: 14,
+  },
+  composerButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#EAF1F4",
+  },
+  composerButtonDisabled: {
+    opacity: 0.5,
+  },
+  composerButtonPressed: {
+    opacity: 0.72,
+  },
+  composerButtonText: {
+    color: "#7C8FA3",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  bottomNav: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
     width: "100%",
-    aspectRatio: 296 / 171,
-    borderRadius: Spacing.three,
-    marginTop: Spacing.two,
+    backgroundColor: "#FFFFFF",
+    borderTopWidth: 1,
+    borderTopColor: "rgba(15, 23, 42, 0.08)",
+    paddingTop: 12,
   },
-  imageReact: {
-    width: 100,
-    height: 100,
-    alignSelf: "center",
+  bottomNavItem: {
+    flex: 1,
+    alignItems: "center",
+    gap: 4,
+  },
+  bottomNavIcon: {
+    width: 28,
+    height: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "transparent",
+  },
+  bottomNavIconActive: {
+    backgroundColor: "#D8E7F6",
+  },
+  bottomNavIconText: {
+    fontSize: 14,
+    color: "#64748B",
+  },
+  bottomNavIconTextActive: {
+    color: "#0F4C81",
+  },
+  bottomNavLabel: {
+    fontSize: 10,
+    color: "#64748B",
+  },
+  bottomNavLabelActive: {
+    color: "#0F4C81",
+    fontWeight: "600",
   },
 });

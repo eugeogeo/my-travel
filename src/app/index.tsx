@@ -35,7 +35,10 @@ export default function HomeScreen() {
     destination.trim().length > 0 ? destination.trim() : "Rio de Janeiro";
 
   const handleExplore = () => {
-    router.push("/explore");
+    router.push({
+      pathname: "/explore",
+      params: { destination: heroDestination },
+    });
   };
 
   return (
