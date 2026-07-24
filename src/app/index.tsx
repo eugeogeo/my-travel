@@ -1,98 +1,101 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from "expo-router";
+import * as SecureStore from "expo-secure-store";
+import React, { useEffect, useState } from "react";
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+export default function OnboardingScreen() {
+  const [apiKey, setApiKey] = useState("");
+  const router = useRouter();
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
+  useEffect(() => {
+    async function checkExistingKey() {
+      let storedKey = null;
+
+      // Verifica onde o app está rodando para buscar a chave
+      if (Platform.OS === "web") {
+        storedKey = localStorage.getItem("gemini_api_key");
+      } else {
+        storedKey = await SecureStore.getItemAsync("gemini_api_key");
+      }
+
+      if (storedKey) {
+        router.replace("/workspace");
+      }
+    }
+    checkExistingKey();
+  }, []);
+
+  const handleStart = async () => {
+    if (apiKey.trim().length === 0) return;
+
+    const keyToSave = apiKey.trim();
+
+    // Salva a chave no local correto dependendo da plataforma
+    if (Platform.OS === "web") {
+      localStorage.setItem("gemini_api_key", keyToSave);
+    } else {
+      await SecureStore.setItemAsync("gemini_api_key", keyToSave);
+    }
+
+    router.replace("/workspace");
+  };
+
   return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      className="flex-1 bg-white"
+    >
+      <View className="flex-1 justify-center px-8">
+        {/* Hero Section */}
+        <View className="mb-12">
+          <Text className="text-4xl font-bold text-slate-900 mb-4 tracking-tight">
+            My Travel
+          </Text>
+          <Text className="text-lg text-slate-500 leading-relaxed">
+            Seu assistente de bolso para roteiros incríveis. Conecte sua
+            inteligência para começar a planejar.
+          </Text>
+        </View>
+
+        {/* Input da API Key */}
+        <View className="mb-6">
+          <Text className="text-sm font-semibold text-slate-700 mb-2 uppercase tracking-wider">
+            Google Gemini API Key
+          </Text>
+          <TextInput
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-4 text-slate-900 text-base"
+            placeholder="Cole sua chave aqui (AIzaSy...)"
+            placeholderTextColor="#94a3b8"
+            secureTextEntry={true}
+            value={apiKey}
+            onChangeText={setApiKey}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          <Text className="text-xs text-slate-400 mt-3">
+            Sua chave fica salva apenas no seu aparelho.
+          </Text>
+        </View>
+
+        {/* Botão de Ação */}
+        <TouchableOpacity
+          onPress={handleStart}
+          activeOpacity={0.8}
+          className={`w-full py-4 rounded-xl items-center ${
+            apiKey.trim().length > 0 ? "bg-blue-600" : "bg-slate-300"
+          }`}
+          disabled={apiKey.trim().length === 0}
+        >
+          <Text className="text-white font-bold text-lg">Começar a Viajar</Text>
+        </TouchableOpacity>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
-
-export default function HomeScreen() {
-  return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
-
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
-
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
-
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
-  },
-  safeArea: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
-  },
-  heroSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
-  },
-  title: {
-    textAlign: 'center',
-  },
-  code: {
-    textTransform: 'uppercase',
-  },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
-  },
-});
