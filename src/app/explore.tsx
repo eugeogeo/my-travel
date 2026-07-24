@@ -16,6 +16,7 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 
+import { geminiApiKey } from "@/config/env";
 import { Fonts } from "@/constants/theme";
 
 type ChatMessage = {
@@ -23,6 +24,15 @@ type ChatMessage = {
   role: "assistant" | "user";
   text: string;
   loading?: boolean;
+};
+
+type GeminiPart = {
+  text: string;
+};
+
+type GeminiContent = {
+  role: "user" | "model";
+  parts: GeminiPart[];
 };
 
 const dayCards = [
@@ -65,6 +75,8 @@ export default function ExploreScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ destination?: string }>();
   const loadingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const requestIdRef = useRef(0);
+  const sendLockRef = useRef(false);
   const [composerText, setComposerText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -89,22 +101,132 @@ export default function ExploreScreen() {
     };
   }, []);
 
+  useEffect(() => {
+    const latestMessage = messages[messages.length - 1];
+
+    console.log("[MyTravel chat] messages updated", {
+      count: messages.length,
+      isLoading,
+      latestMessage,
+    });
+  }, [isLoading, messages]);
+
   const handleGoHome = () => {
     router.push("/");
+  };
+
+  const buildSystemPrompt = () => {
+    return [
+      "You are My Travel AI.",
+      `The destination is ${destination}.`,
+      "Create a concise travel-planning reply in Portuguese.",
+      "Do not mention that you are a model.",
+      "If the user provides enough details, build a practical next-step plan.",
+      "If details are missing, ask the minimum necessary follow-up questions.",
+      "Keep the tone friendly, direct, and helpful.",
+    ].join(" ");
+  };
+
+  const buildGeminiContents = (userText: string): GeminiContent[] => {
+    const recentMessages = messages
+      .filter((message) => !message.loading)
+      .slice(-6)
+      .map<GeminiContent>((message) => ({
+        role: message.role === "assistant" ? "model" : "user",
+        parts: [{ text: message.text }],
+      }));
+
+    return [
+      {
+        role: "user",
+        parts: [
+          { text: `${buildSystemPrompt()}\n\nUser request: ${userText}` },
+        ],
+      },
+      ...recentMessages,
+    ];
+  };
+
+  const requestGeminiReply = async (userText: string) => {
+    if (!geminiApiKey) {
+      throw new Error("EXPO_PUBLIC_GEMINI_API_KEY is missing");
+    }
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          contents: buildGeminiContents(userText),
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 220,
+          },
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      throw new Error(
+        `Gemini request failed (${response.status}): ${errorBody}`,
+      );
+    }
+
+    const data = (await response.json()) as {
+      candidates?: Array<{
+        content?: {
+          parts?: Array<{ text?: string }>;
+        };
+      }>;
+    };
+
+    const replyText = data.candidates?.[0]?.content?.parts
+      ?.map((part) => part.text ?? "")
+      .join("")
+      .trim();
+
+    if (!replyText) {
+      throw new Error("Gemini returned an empty response");
+    }
+
+    return replyText;
   };
 
   const handleSend = () => {
     const trimmedText = composerText.trim();
 
-    if (!trimmedText || isLoading) {
+    if (!trimmedText || isLoading || sendLockRef.current) {
+      console.log("[MyTravel chat] send blocked", {
+        trimmedText,
+        isLoading,
+        sendLockActive: sendLockRef.current,
+      });
       return;
     }
+
+    sendLockRef.current = true;
+    const currentRequestId = requestIdRef.current + 1;
+    requestIdRef.current = currentRequestId;
+
+    console.log("[MyTravel Gemini] send start", {
+      requestId: currentRequestId,
+      destination,
+      message: trimmedText,
+      hasApiKey: Boolean(geminiApiKey),
+    });
 
     const timestamp = Date.now();
     const loadingMessageId = `loading-${timestamp}`;
 
     setComposerText("");
     setIsLoading(true);
+    console.log("[MyTravel chat] loading started", {
+      loadingMessageId,
+    });
     setMessages((currentMessages) => [
       ...currentMessages,
       {
@@ -121,16 +243,52 @@ export default function ExploreScreen() {
     ]);
 
     loadingTimer.current = setTimeout(() => {
-      setMessages((currentMessages) =>
-        currentMessages
-          .filter((message) => !message.loading)
-          .concat({
-            id: `assistant-${Date.now()}`,
-            role: "assistant",
-            text: `Fechado. Vou ajustar o plano base para ${destination}. Agora me diga as datas exatas e com quem você vai para eu refinar tudo.`,
-          }),
-      );
-      setIsLoading(false);
+      requestGeminiReply(trimmedText)
+        .then((assistantReply) => {
+          console.log("[MyTravel Gemini] response received", {
+            requestId: currentRequestId,
+            assistantReply,
+          });
+
+          if (requestIdRef.current !== currentRequestId) {
+            console.log("[MyTravel Gemini] stale response ignored", {
+              requestId: currentRequestId,
+            });
+            return;
+          }
+
+          setMessages((currentMessages) =>
+            currentMessages
+              .filter((message) => !message.loading)
+              .concat({
+                id: `assistant-${Date.now()}`,
+                role: "assistant",
+                text: assistantReply,
+              }),
+          );
+        })
+        .catch((error) => {
+          console.log("[MyTravel Gemini] request failed", {
+            requestId: currentRequestId,
+            error: String(error),
+          });
+
+          setMessages((currentMessages) =>
+            currentMessages
+              .filter((message) => !message.loading)
+              .concat({
+                id: `assistant-error-${Date.now()}`,
+                role: "assistant",
+                text: "Não consegui buscar no Gemini agora. Verifique a chave do env e a conexão.",
+              }),
+          );
+        })
+        .finally(() => {
+          if (requestIdRef.current === currentRequestId) {
+            setIsLoading(false);
+            sendLockRef.current = false;
+          }
+        });
     }, 1300);
   };
 
