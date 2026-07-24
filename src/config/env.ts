@@ -1,0 +1,5 @@
+const geminiApiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY?.trim() ?? "";
+
+export { geminiApiKey };
+
+export const hasGeminiApiKey = geminiApiKey.length > 0;
