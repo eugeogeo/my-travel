@@ -1,9 +1,10 @@
 {
   "name": "my-travel",
-  "main": "expo-router/entry",
+  "main": "index.js",
   "version": "1.0.0",
   "dependencies": {
     "@expo/ui": "~0.2.0-beta.9",
+    "@react-navigation/native": "^7.3.14",
     "expo": "~54.0.0",
     "expo-constants": "~18.0.13",
     "expo-device": "~8.0.10",
@@ -11,6 +12,7 @@
     "expo-glass-effect": "~0.1.10",
     "expo-image": "~3.0.11",
     "expo-linking": "~8.0.12",
+    "expo-navigation-bar": "^57.0.2",
     "expo-router": "~6.0.24",
     "expo-secure-store": "~15.0.8",
     "expo-splash-screen": "~31.0.13",
