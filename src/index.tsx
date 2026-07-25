@@ -2,7 +2,7 @@ import * as SplashScreen from "expo-splash-screen";
 import React from "react";
 import { View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import NavBar from "./components/navbar";
+import NavBar from "./app/components/navbar";
 import { useResponsiveLayout } from "./hooks/use-responsive-layout";
 import Routes from "./navigation";
 import { styles } from "./styles";

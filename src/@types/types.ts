@@ -1,15 +1,1 @@
-export type GeminiPart = {
-  text: string;
-};
-
-export type GeminiContent = {
-  role: "user" | "model";
-  parts: GeminiPart[];
-};
-
-export type ChatMessage = {
-  id: string;
-  role: "assistant" | "user";
-  text: string;
-  loading?: boolean;
-};
+// Tipos gerais compartilhados do projeto.
