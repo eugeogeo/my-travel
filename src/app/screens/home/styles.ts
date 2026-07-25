@@ -60,4 +60,10 @@ export const styles = StyleSheet.create({
     color: "#0F172A",
     fontSize: 13,
   },
+  inputErrorText: {
+    marginTop: -24,
+    color: "#B91C1C",
+    fontSize: 12,
+    fontWeight: "500",
+  },
 });

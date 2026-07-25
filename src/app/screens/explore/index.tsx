@@ -1,4 +1,10 @@
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { RootStackParamList } from "@/navigation/root";
+import {
+  useNavigation,
+  useRoute,
+  type RouteProp,
+} from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -13,6 +19,7 @@ import {
 
 import { ChatMessage, GeminiContent } from "@/@types/types";
 import { geminiApiKey } from "@/config/env";
+import { DEFAULT_DESTINATION } from "@/navigation/explore";
 import { dayCards } from "./helpers/dayCards";
 import { styles } from "./styles";
 
@@ -23,8 +30,9 @@ const bottomNavItems = [
 ] as const;
 
 export default function ExploreScreen() {
-  const router = useRouter();
-  const params = useLocalSearchParams<{ destination?: string }>();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const route = useRoute<RouteProp<RootStackParamList, "Explore">>();
   const loadingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const requestIdRef = useRef(0);
   const sendLockRef = useRef(false);
@@ -38,11 +46,7 @@ export default function ExploreScreen() {
     },
   ]);
 
-  const destination =
-    typeof params.destination === "string" &&
-    params.destination.trim().length > 0
-      ? params.destination.trim()
-      : "Rio de Janeiro";
+  const destination = route.params?.destination?.trim() || DEFAULT_DESTINATION;
 
   useEffect(() => {
     return () => {
@@ -62,7 +66,9 @@ export default function ExploreScreen() {
     });
   }, [isLoading, messages]);
 
-  const handleGoHome = () => {};
+  const handleGoHome = () => {
+    navigation.navigate("Home");
+  };
 
   const buildSystemPrompt = () => {
     return [

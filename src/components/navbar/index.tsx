@@ -1,3 +1,4 @@
+import { navigateToExplore } from "@/navigation/explore";
 import React from "react";
 import { Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -14,7 +15,9 @@ const NavBar = () => {
     { label: "Perfil", icon: "👤", isActive: false },
   ];
 
-  const handleExplore = () => {};
+  const handleExplore = () => {
+    navigateToExplore();
+  };
 
   return (
     <View style={[Nav, { padding: 8 }]}>

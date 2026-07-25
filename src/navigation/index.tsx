@@ -1,16 +1,15 @@
+import ExploreScreen from "@/app/screens/explore";
 import Home from "@/app/screens/home";
-import {
-  DefaultTheme,
-  NavigationContainer,
-  useNavigationContainerRef,
-} from "@react-navigation/native";
+import { DefaultTheme, NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import React from "react";
+import { navigationRef, RootStackParamList } from "./root";
 
-const Stack = createNativeStackNavigator();
+export type { RootStackParamList } from "./root";
+
+const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const Routes: React.FC = () => {
-  const navigationRef = useNavigationContainerRef();
   const navigationTheme = {
     ...DefaultTheme,
     colors: {
@@ -30,6 +29,7 @@ const Routes: React.FC = () => {
         initialRouteName={"Home"}
       >
         <Stack.Screen name="Home" component={Home} />
+        <Stack.Screen name="Explore" component={ExploreScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
