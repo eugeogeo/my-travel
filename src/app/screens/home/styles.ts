@@ -60,16 +60,4 @@ export const styles = StyleSheet.create({
     color: "#0F172A",
     fontSize: 13,
   },
-  primaryButton: {
-    height: 54,
-    borderRadius: 20,
-    backgroundColor: "#0F172A",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  primaryButtonText: {
-    color: "#FFFFFF",
-    fontSize: 15,
-    fontWeight: "700",
-  }
 });

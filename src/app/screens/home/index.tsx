@@ -1,5 +1,6 @@
+import Button from "@/components/button";
 import React, { useState } from "react";
-import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { ScrollView, Text, TextInput, View } from "react-native";
 import { styles } from "./styles";
 
 const Home = () => {
@@ -15,8 +16,6 @@ const Home = () => {
     heroSubtitle,
     searchCard,
     searchInput,
-    primaryButton,
-    primaryButtonText,
     screen,
   } = styles;
 
@@ -55,9 +54,11 @@ const Home = () => {
             />
           </View>
 
-          <Pressable style={primaryButton} onPress={handleExplore}>
-            <Text style={primaryButtonText}>Explore ✈️</Text>
-          </Pressable>
+          <Button
+            title="Explore ✈️"
+            variant="contained"
+            onPress={handleExplore}
+          />
         </View>
       </ScrollView>
     </View>

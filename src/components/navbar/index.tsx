@@ -17,7 +17,7 @@ const NavBar = () => {
   const handleExplore = () => {};
 
   return (
-    <View style={[Nav, { padding: insets.bottom || 12 }]}>
+    <View style={[Nav, { padding: 8 }]}>
       {items.map(({ label, icon, isActive }) => (
         <Pressable
           key={label}
